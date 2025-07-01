@@ -1,0 +1,78 @@
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+
+st.set_page_config(page_title="Sales-Customer Alignment Tool", layout="wide")
+
+st.title("📊 Sales-Customer Alignment Dashboard")
+
+# Upload CSV files
+sales_file = st.file_uploader("Upload Sales Team CSV", type=["csv"])
+customer_file = st.file_uploader("Upload Customer Needs CSV", type=["csv"])
+
+if sales_file and customer_file:
+    sales_df = pd.read_csv(sales_file)
+    customer_df = pd.read_csv(customer_file)
+
+    st.subheader("Sales Team Data")
+    st.dataframe(sales_df)
+
+    st.subheader("Customer Needs Data")
+    st.dataframe(customer_df)
+
+    # Matching logic: match by Region and highest Technical Acumen
+    assignments = []
+    for _, customer in customer_df.iterrows():
+        region = customer['Region']
+        tech_need = customer['Technical Needs']
+
+        # Filter sales reps by region
+        regional_reps = sales_df[sales_df['Territory Experience'] == region]
+
+        if not regional_reps.empty:
+            # Select rep with highest Technical Acumen
+            best_rep = regional_reps.sort_values(by='Technical Acumen', ascending=False).iloc[0]
+            assignments.append({
+                'Customer': customer['Customer'],
+                'Assigned Rep': best_rep['Sales Rep'],
+                'Region': region,
+                'Customer Tech Need': tech_need,
+                'Rep Tech Acumen': best_rep['Technical Acumen']
+            })
+        else:
+            assignments.append({
+                'Customer': customer['Customer'],
+                'Assigned Rep': 'No Match Found',
+                'Region': region,
+                'Customer Tech Need': tech_need,
+                'Rep Tech Acumen': 'N/A'
+            })
+
+    assignment_df = pd.DataFrame(assignments)
+
+    st.subheader("📋 Assignment Summary")
+    st.dataframe(assignment_df)
+
+    # Bar chart: Technical Acumen of Sales Reps
+    st.subheader("📈 Technical Acumen of Sales Reps")
+    fig1, ax1 = plt.subplots()
+    ax1.bar(sales_df['Sales Rep'], sales_df['Technical Acumen'], color='skyblue')
+    ax1.set_ylabel("Technical Acumen")
+    ax1.set_title("Sales Reps Technical Acumen")
+    st.pyplot(fig1)
+
+    # Pie chart: Customer Region Distribution
+    st.subheader("🌍 Customer Region Distribution")
+    region_counts = customer_df['Region'].value_counts()
+    fig2, ax2 = plt.subplots()
+    ax2.pie(region_counts, labels=region_counts.index, autopct='%1.1f%%', startangle=90)
+    ax2.axis('equal')
+    st.pyplot(fig2)
+
+    # Summary table: Number of customers per rep
+    st.subheader("📊 Number of Customers Assigned per Sales Rep")
+    rep_counts = assignment_df['Assigned Rep'].value_counts().reset_index()
+    rep_counts.columns = ['Sales Rep', 'Number of Customers']
+    st.dataframe(rep_counts)
+else:
+    st.info("Please upload both Sales Team and Customer Needs CSV files to proceed.")
